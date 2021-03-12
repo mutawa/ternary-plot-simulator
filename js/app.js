@@ -5,7 +5,7 @@ let center;
 const points = [];
 
 const plotData = {
-    arrowsColor:"series",
+    arrowsColor:"black",
     arrowStrokeWeight: 4,
     gridHue: 100,
     gridLineWeight: 1,
@@ -41,7 +41,7 @@ function draw()
 
     fill("whitesmoke");
     translate(width/2, height/2);
-    rotate(150);
+    //rotate(150);
     stroke("gold");
     circle(0,0, radius);
     ternary.show();
@@ -89,19 +89,59 @@ class Ternary
 
     plot(a,b,c)
     {
-        const total = Number(a)+Number(b)+Number(c);
-        const l1 = this.axes[0].get(100 * a/total);
-        const l2 = this.axes[1].get(100 * b/total);
-        const l3 = this.axes[2].get(100 * c/total );
         
-        const nt = line_intersect(l1.x1, l1.y1, l1.x2, l1.y2, l2.x1, l2.y1, l2.x2, l2.y2);
-        points.push(nt);
+        const values = [];
+        const lines = [];
+
+        for(let i=0; i<arguments.length; i++) { values.push( Number(arguments[i]));  }
+        const total = values.reduce((x,r)=>r+=x, 0);
+        const numOfZeros = values.filter(x => x===0).length;
+
+
+        console.log({numOfZeros});
+
+        
+        if(total>0) {
+            for(let i=0; i<this.axes.length; i++) {
+                const v = Number(arguments[i]);
+                lines.push(this.axes[i].get(100 * v/total));
+            }
+
+            if(numOfZeros===2) 
+            {
+                
+                let pointAdded = false;
+                lines.forEach(l=>{
+                    if(l.x1 === l.x2 && l.y1 === l.y2 && !pointAdded ) { points.push({x:l.x1, y:l.y1}); pointAdded = true;  }
+                });
+    
+            }
+            else {
+                console.log(lines);
+                for(let i=0; i<lines.length-1; i++) 
+                {
+                    const l1 = lines[i];
+                    const l2 = lines[i+1];
+                    const p = line_intersect(l1.x1, l1.y1, l1.x2, l1.y2, l2.x1, l2.y1, l2.x2, l2.y2);
+                    if(p !== null) {
+                        
+                        points.push(p);
+                        break;
+                    }
+                }
+            }
+            
+           
+
+            
+        }
+        
         //console.log(nt);
     }
 
     show() {
         for(let a in this.axes) {  this.axes[a].show(); }
-        for(let p of points) { circle(p.x, p.y, 4); }
+        for(let p of points) { if(p) circle(p.x, p.y, 9); }
     }
 }
 
@@ -121,22 +161,24 @@ class Axis
     show()
     {
         stroke(this.c);
-        //line(0,0, this.base.x, this.base.y);
-        //line(0,0, this.end.x, this.end.y);
-
         
-        //noFill();
-        //circle(this.base.x, this.base.y, 10);
-        //fill(this.c);
-        
-        //circle(this.end.x, this.end.y, 10);
-        //drawArrow(this.base, this.end,  "gold");
-        drawArrow(this.base, this.line, this.c);
+        drawArrow(this.base, this.line, plotData.arrowsColor === "series" ? this.data.color : plotData.arrowsColor, false);
 
         for(let i=10; i<=100 ; i += 10)
         {
            this.plot(i);
+        
         }
+
+        //const arrow = this.line.copy();
+        //arrow.mult(0.5);
+        stroke(this.data.color);
+        
+        const arrowStart = this.base.copy().mult(0.5).rotate(120);
+        arrowStart.add(this.base);
+        const arrowEnd = this.line.copy().mult(0.5);
+        drawArrow( arrowStart, arrowEnd, this.data.color);
+
         
     }
 
@@ -144,9 +186,35 @@ class Axis
     plot = pct => {
         
         
-        drawArrow(this.base, this.line, this.c, true, plotData.arrowStrokeWeight);
+        //drawArrow(this.base, this.line, this.c, true, plotData.arrowStrokeWeight);
         const val = this.line.copy();
         val.mult(pct/100);
+
+        const tick = this.base.copy();
+        tick.rotate(30).mult(0.2);
+
+        push();
+        textAlign(RIGHT);
+        translate(val.x + this.base.x, val.y + this.base.y);
+        
+        stroke(this.data.color);
+        const textX = tick.x;
+        const textY = tick.y;
+        tick.mult(0.5);
+        line(0,0,tick.x, tick.y);
+        translate(textX, textY );
+        rotate(tick.heading());
+        noStroke();
+        fill(this.data.color);
+        text(pct, 0,0);
+        //text(pct, 0,0);
+        //console.log(tick.x, tick.y);
+        pop();
+        //const tick = val.copy().mult(0.1);
+        
+        //tick.rotate(270);
+        //line(val.x,val.y,tick.x,tick.y);
+
         //drawArrow(this.base, val, "orange");
         //drawArrow(center, val, "darkseagreen");
         
@@ -169,33 +237,13 @@ class Axis
         fill(this.c);
         drawArrow(t, valp, c, false, plotData.gridLineWeight);
 
-        //t.mult(1.1);
-        const lab = createVector(20,20);
-        lab.rotate(this.labelRotation);
-        drawArrow(t, lab, color(0, 40), false);
+        
+        
 
         
         
 
-        push();
-        textAlign(LEFT);
-        translate(t.x + lab.x , t.y + lab.y );
-        rotate(lab.heading());
-        rotate(this.labelRotation);
-        text(pct, 
-            -15 , 
-            5 );
-        pop();
-        //line(0,0,t.x,t.y);
-
-        /*
-        stroke("purple");
-        line(0,0,val.x,val.y);
-        stroke("magenta")
-        line(0,0,valp.x,valp.y);
-        stroke("cyan");
-        line(val.x,val.y, valp.x, valp.y);
-        */
+        
     }
 
     get = pct => {
