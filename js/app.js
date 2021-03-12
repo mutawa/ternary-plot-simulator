@@ -3,12 +3,25 @@ const radius = 400;
 let ternary;
 let center;
 const points = [];
+
+const plotData = {
+    arrowsColor:"series",
+    arrowStrokeWeight: 4,
+    gridHue: 100,
+    gridLineWeight: 1,
+    
+    series:[
+    {color: "red", name:"C2H6", showArrow: true, arrowText: "percent C2H6 %", labelRotation: 0},
+    {color: "blue", name:"H2O", showArrow: true, arrowText: "percent Water %", labelRotation: 360/3},
+    {color: "green", name:"NaCL", showArrow: true, arrowText: "percent NaCl %", labelRotation: 200}
+]};
+
 function setup()
 {
     createCanvas(900,900);
     angleMode(DEGREES);
 
-    ternary = new Ternary(3);
+    ternary = new Ternary(plotData);
     center = createVector(0,0);
     textAlign(CENTER);
     v1 = createInput();
@@ -48,12 +61,13 @@ function mousePressed()
 
     
 }
-const colors = ["red", "blue", "green"];
+
 let k = 0;
 class Ternary
 {
-    constructor(n)
+    constructor(data)
     {
+        const n = data.series.length;
         this.n = n;
         this.axes = [];
         for(let i=0; i<n; i++) {
@@ -66,7 +80,7 @@ class Ternary
             const x2 = cos(angle2) * radius/2;
             const y2 = sin(angle2) * radius/2;
           
-            const axis = new Axis(x1, y1, x2, y2, colors[k], 30);
+            const axis = new Axis(data.series[k], x1, y1, x2, y2);
             k++;
             this.axes.push(axis);
         }
@@ -93,13 +107,14 @@ class Ternary
 
 class Axis
 {
-    constructor(x1,y1,x2,y2,c,r)
+    constructor(data, x1,y1,x2,y2)
     {
+        this.data = data;
         this.base = createVector(x1, y1);
         this.end = createVector(x2, y2);
         this.line = p5.Vector.sub(this.end, this.base);
-        this.c = c;
-        this.r = r;
+        this.c = data.color;
+        this.labelRotation = data.labelRotation;
 
     }
 
@@ -129,7 +144,7 @@ class Axis
     plot = pct => {
         
         
-        drawArrow(this.base, this.line, this.c);
+        drawArrow(this.base, this.line, this.c, true, plotData.arrowStrokeWeight);
         const val = this.line.copy();
         val.mult(pct/100);
         //drawArrow(this.base, val, "orange");
@@ -147,17 +162,26 @@ class Axis
         //line(0,0,t.x,t.y);
         //line(0,0,valp.x,valp.y);
         const c = color(this.c);
-        c.setAlpha(30);
+        c.setAlpha(plotData.gridHue);
         
         //t.rotate(map(pct,0,1,200,330));
         noStroke();
         fill(this.c);
-        drawArrow(t, valp, c, false);
-        t.mult(1.0);
+        drawArrow(t, valp, c, false, plotData.gridLineWeight);
+
+        //t.mult(1.1);
+        const lab = createVector(20,20);
+        lab.rotate(this.labelRotation);
+        drawArrow(t, lab, color(0, 40), false);
+
+        
+        
 
         push();
-        translate(t.x, t.y);
-        rotate(valp.heading() + this.r );
+        textAlign(LEFT);
+        translate(t.x + lab.x , t.y + lab.y );
+        rotate(lab.heading());
+        rotate(this.labelRotation);
         text(pct, 
             -15 , 
             5 );
@@ -196,10 +220,10 @@ class Axis
     }
 }
 
-function drawArrow(base, vec, myColor, withPoint = true) {
+function drawArrow(base, vec, myColor, withPoint = true, weight = 2) {
     push();
     stroke(myColor);
-    strokeWeight(2);
+    strokeWeight(weight);
     fill(myColor);
     translate(base.x, base.y);
     line(0, 0, vec.x, vec.y);
