@@ -1,19 +1,29 @@
 let v1, v2, v3, b;
-const radius = 400;
+const radius = 600;
 let ternary;
 let center;
 const points = [];
 
+let areas = [];
+
 const plotData = {
     arrowsColor:"black",
     arrowStrokeWeight: 4,
-    gridHue: 100,
-    gridLineWeight: 1,
-    
+    gridHue: 10,
+    gridLineWeight: 1.5,
+    areas: [
+            {name:"PD", nameOffset: {x:0, y:-10}, color: "darkgreen", coordinates:[[0.98, 0.02, 0],[1,0,0],[0.98,0,0.02]]},
+            {name: "T1", nameOffset: {x:-5, y:0}, color:"blue", coordinates:[[0.76, 0.2, 0.04], [0.8, 0.2, 0], [0.98, 0.02,0],[0.98,0,0.02],[0.96,0,0.04]]},
+            {name:"D1", nameOffset: {x:0, y:0},   color: "red", coordinates:[[0,0,1], [0,0.23,0.77],[0.64,0.23,0.13],[0.87,0,0.13]]},
+            {name:"D2", nameOffset: {x:0, y:-10},   color: "green", coordinates:[[0,0.23,.77], [0,0.71,0.29],[0.31,0.4,0.29],[0.47,0.4,0.13],[0.64, 0.23, 0.13]]},
+            {name:"DT", nameOffset: {x:5, y:0},   color: "gold", coordinates:[[0,0.71,0.29], [0,0.85,0.15],[0.35, 0.5, 0.15],[0.46,0.5,0.04],[0.96,0,0.04],[0.87,0,0.13],[0.47,0.4,0.13],[0.31,0.4,0.29]]},
+
+            
+        ],
     series:[
-    {color: "red", name:"C2H6", nameSize: 25, showArrow: true, arrowText: "percent C2H6 %", arrowTextSize: 20, arrowTextRotation: 0, labelRotation: 0, labelSize:10},
-    {color: "blue", name:"H2O", nameSize: 25, showArrow: true, arrowText: "percent Water %", arrowTextSize: 20, arrowTextRotation: 180, labelRotation: 0, labelSize: 10},
-    {color: "green", name:"NaCL", nameSize: 25, showArrow: true, arrowText: "percent NaCl %", arrowTextSize: 20, arrowTextRotation: 0, labelRotation: 180, labelSize: 10}
+    {color: "red", name:"C2H6", nameSize: 25, showArrow: true, arrowText: "percent C2H6 %", arrowTextSize: 15, arrowTextRotation: 0, labelRotation: 0, labelSize:10},
+    {color: "blue", name:"H2O", nameSize: 25, showArrow: true, arrowText: "percent Water %", arrowTextSize: 15, arrowTextRotation: 180, labelRotation: 0, labelSize: 10},
+    {color: "green", name:"NaCL", nameSize: 25, showArrow: true, arrowText: "percent NaCl %", arrowTextSize: 15, arrowTextRotation: 0, labelRotation: 180, labelSize: 10}
 ]};
 
 function setup()
@@ -27,10 +37,19 @@ function setup()
     v1 = createInput();
     v2 = createInput();
     v3 = createInput();
-    b = createButton();
+    b = createButton('submit');
+    
     b.mousePressed(function(){
         ternary.plot(v1.value(), v2.value(), v3.value());
 
+    });
+    
+    plotData.areas.forEach(a => {
+        a.points = [];
+        a.coordinates.forEach(p => {
+            a.points.push(ternary.plot(p[0], p[1], p[2]));
+        });
+        a.centeroid = get_polygon_centroid(a.points);
     });
 
 }
@@ -42,29 +61,24 @@ function draw()
     fill("whitesmoke");
     translate(width/2, height/2);
     rotate(0);
-    stroke("gold");
-    circle(0,0, radius);
+    
     ternary.show();
-    //ternary.axes[0].plot(map(mouseX,0,width,0,100));
-    //ternary.axes[1].plot(map(mouseX,0,width,0,1));
-    //ternary.axes[2].plot(map(mouseX,0,width,0,1));
+    
 }
 function mousePressed()
 {
 
-    points.push({x:mouseX - width/2, y:mouseY-height/2});
+    //points.push({x:mouseX - width/2, y:mouseY-height/2});
 
-    
-
-    
 }
 
-let k = 0;
+
 class Ternary
 {
     constructor(data)
     {
         const n = data.series.length;
+        let k = 0;
         this.n = n;
         this.axes = [];
         for(let i=0; i<n; i++) {
@@ -76,7 +90,9 @@ class Ternary
 
             const x2 = cos(angle2) * radius/2;
             const y2 = sin(angle2) * radius/2;
-          
+            data.series[k].angle1 = angle1;
+            data.series[k].angle2 = angle2;
+
             const axis = new Axis(data.series[k], x1, y1, x2, y2);
             k++;
             this.axes.push(axis);
@@ -94,14 +110,11 @@ class Ternary
         const total = values.reduce((x,r)=>r+=x, 0);
         const numOfZeros = values.filter(x => x===0).length;
 
-
-        console.log({numOfZeros});
-
         
         if(total>0) {
             for(let i=0; i<this.axes.length; i++) {
                 const v = Number(arguments[i]);
-                lines.push(this.axes[i].get(100 * v/total));
+                lines.push(this.axes[(i+2)%this.axes.length].get(100 * v/total));
             }
 
             if(numOfZeros===2) 
@@ -114,7 +127,8 @@ class Ternary
     
             }
             else {
-                console.log(lines);
+                let added = false;
+
                 for(let i=0; i<lines.length-1; i++) 
                 {
                     const l1 = lines[i];
@@ -123,13 +137,29 @@ class Ternary
                     if(p !== null) {
                         
                         points.push(p);
+                        added = true;
                         break;
+                    } else {
+                        
+                        if((l1.x1 === l2.x2 && l1.y1 === l2.y2)) { points.push({x: l1.x1, y: l1.y1}); added = true; break; } 
+                        else if(l1.x2 === l2.x1 && l1.y2 === l2.y1) { points.push({x: l1.x2, y: l1.y2}); added = true; break; }
                     }
                 }
+                if(!added) {
+                    const l1 = lines[0];
+                    const l2 = lines[2];
+                    const p = line_intersect(l1.x1, l1.y1, l1.x2, l1.y2, l2.x1, l2.y1, l2.x2, l2.y2);
+                    if(p !== null) {
+                        points.push(p);
+                    } else {
+                        
+                        if((l1.x1 === l2.x2 && l1.y1 === l2.y2)) { points.push({x: l1.x1, y: l1.y1}); added = true;  } 
+                        else if(l1.x2 === l2.x1 && l1.y2 === l2.y1) { points.push({x: l1.x2, y: l1.y2}); added = true;  }
+                    }
+                }
+                
             }
-            
-           
-
+            return points.splice(0,1)[0];
             
         }
         
@@ -138,7 +168,24 @@ class Ternary
 
     show() {
         for(let a in this.axes) {  this.axes[a].show(); }
-        for(let p of points) { if(p) circle(p.x, p.y, 9); }
+
+
+        plotData.areas.forEach(a => {
+            stroke(0,100);
+            const c = color(a.color);
+            c.setAlpha(50);
+            fill(c);
+            textAlign(CENTER,BOTTOM);
+            beginShape();
+            for(let p of a.points) { if(p) {  vertex(p.x, p.y);} }
+            endShape();
+            fill(0);
+            textSize(15);
+            text(a.name, a.centeroid.x + (a.nameOffset ? a.nameOffset.x : 0), a.centeroid.y + (a.nameOffset ? a.nameOffset.y : 0));
+        });
+        
+
+        
     }
 }
 
@@ -183,7 +230,7 @@ class Axis
         text(this.data.arrowText, 0,0);
         pop();
 
-
+        noStroke();
         const name = this.end.copy().mult(1.15);
         textSize(this.data.nameSize);
         text(this.data.name,name.x, name.y);
@@ -258,24 +305,29 @@ class Axis
     }
 
     get = pct => {
+        
         const val = this.line.copy();
-        val.mult( pct/100);
+        val.mult( pct/100 );
+        //stroke(this.data.color);
+        //strokeWeight(5);
+    
+        
+        
         const valp = val.copy();
-        valp.setMag(this.line.mag() - val.mag());
+        valp.setMag(this.line.mag() - val.mag() );
         valp.rotate(60);
-        
-        //drawArrow(this.end, valp, "black");
-
-        //valp.setMag( 50 );
         const t = p5.Vector.add(val, this.base);
-        //noLoop();
-        stroke(0, 7);
-        //circle(t.x, t.y, 20);
-        
-        //circle(t.x+valp.x, valp.y+t.y, 20);
-        line(t.x, t.y, t.x + valp.x, t.y + valp.y);
+        const x1 = round(this.base.x + val.x ,4) || 0;
+        const y1 = round(this.base.y + val.y ,4) || 0;
+        const x2 = round(t.x + valp.x,4) || 0;
+        const y2 = round(t.y + valp.y,4) || 0;
 
-        return {x1: t.x, y1: t.y, x2: t.x + valp.x , y2: t.y + valp.y};
+        line(this.base.x + val.x  , this.base.y + val.y     , t.x+valp.x, t.y+valp.y);
+
+        
+        return {x1, y1,  x2, y2, c: this.data.color};
+        
+        
     }
 }
 
@@ -304,6 +356,7 @@ function line_intersect(x1, y1, x2, y2, x3, y3, x4, y4)
 {
     var ua, ub, denom = (y4 - y3)*(x2 - x1) - (x4 - x3)*(y2 - y1);
     if (denom == 0) {
+        
         return null;
     }
     ua = ((x4 - x3)*(y1 - y3) - (y4 - y3)*(x1 - x3))/denom;
@@ -315,3 +368,22 @@ function line_intersect(x1, y1, x2, y2, x3, y3, x4, y4)
         seg2: ub >= 0 && ub <= 1
     };
 }
+
+function get_polygon_centroid(pts) {
+    
+    var first = pts[0], last = pts[pts.length-1];
+    if (first.x != last.x || first.y != last.y) pts.push(first);
+    var twicearea=0,
+    x=0, y=0,
+    nPts = pts.length,
+    p1, p2, f;
+    for ( var i=0, j=nPts-1 ; i<nPts ; j=i++ ) {
+       p1 = pts[i]; p2 = pts[j];
+       f = p1.x*p2.y - p2.x*p1.y;
+       twicearea += f;          
+       x += ( p1.x + p2.x ) * f;
+       y += ( p1.y + p2.y ) * f;
+    }
+    f = twicearea * 3;
+    return { x:x/f, y:y/f };
+ }
