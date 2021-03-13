@@ -1,5 +1,5 @@
 let v1, v2, v3, b;
-const radius = 600;
+const radius = 700;
 let ternary;
 let center;
 const points = [];
@@ -14,6 +14,9 @@ const plotData = {
     areas: [
             {name:"PD", nameOffset: {x:0, y:-10}, color: "darkgreen", coordinates:[[0.98, 0.02, 0],[1,0,0],[0.98,0,0.02]]},
             {name: "T1", nameOffset: {x:-5, y:0}, color:"blue", coordinates:[[0.76, 0.2, 0.04], [0.8, 0.2, 0], [0.98, 0.02,0],[0.98,0,0.02],[0.96,0,0.04]]},
+            {name: "T2", nameOffset: {x:-5, y:0}, color:"cyan", coordinates:[[0.46, 0.5, 0.04],[0.5,0.5,0],[0.8,0.2,0],[0.76,0.2,0.04]]},
+            {name: "T3", nameOffset: {x:-5, y:0}, color:"steelblue", coordinates:[[0,0.85,0.15],[0,1,0],[0.5,0.5,0],[0.35,0.5,.15]]},
+
             {name:"D1", nameOffset: {x:0, y:0},   color: "red", coordinates:[[0,0,1], [0,0.23,0.77],[0.64,0.23,0.13],[0.87,0,0.13]]},
             {name:"D2", nameOffset: {x:0, y:-10},   color: "green", coordinates:[[0,0.23,.77], [0,0.71,0.29],[0.31,0.4,0.29],[0.47,0.4,0.13],[0.64, 0.23, 0.13]]},
             {name:"DT", nameOffset: {x:5, y:0},   color: "gold", coordinates:[[0,0.71,0.29], [0,0.85,0.15],[0.35, 0.5, 0.15],[0.46,0.5,0.04],[0.96,0,0.04],[0.87,0,0.13],[0.47,0.4,0.13],[0.31,0.4,0.29]]},
@@ -21,9 +24,9 @@ const plotData = {
             
         ],
     series:[
-    {color: "red", name:"C2H6", nameSize: 25, showArrow: true, arrowText: "percent C2H6 %", arrowTextSize: 15, arrowTextRotation: 0, labelRotation: 0, labelSize:10},
-    {color: "blue", name:"H2O", nameSize: 25, showArrow: true, arrowText: "percent Water %", arrowTextSize: 15, arrowTextRotation: 180, labelRotation: 0, labelSize: 10},
-    {color: "green", name:"NaCL", nameSize: 25, showArrow: true, arrowText: "percent NaCl %", arrowTextSize: 15, arrowTextRotation: 0, labelRotation: 180, labelSize: 10}
+    {color: "red", name:"C2H4", nameSize: 25, showArrow: true, arrowText: "percent C2H4 %", arrowTextSize: 15, arrowTextRotation: 0, labelRotation: 0, labelSize:15, tickStepSize: 20},
+    {color: "blue", name:"C2H2", nameSize: 25, showArrow: true, arrowText: "percent C2H2 %", arrowTextSize: 15, arrowTextRotation: 180, labelRotation: 0, labelSize: 15, tickStepSize: 20},
+    {color: "green", name:"CH4", nameSize: 25, showArrow: true, arrowText: "percent CH4 %", arrowTextSize: 15, arrowTextRotation: 0, labelRotation: 180, labelSize: 15, tickStepSize: 20}
 ]};
 
 function setup()
@@ -40,7 +43,8 @@ function setup()
     b = createButton('submit');
     
     b.mousePressed(function(){
-        ternary.plot(v1.value(), v2.value(), v3.value());
+        const p = ternary.plot(v1.value(), v2.value(), v3.value());
+        points.push(p);
 
     });
     
@@ -63,6 +67,9 @@ function draw()
     rotate(0);
     
     ternary.show();
+    points.forEach(p => {
+        circle(p.x, p.y, 10);
+    });
     
 }
 function mousePressed()
@@ -109,7 +116,7 @@ class Ternary
         for(let i=0; i<arguments.length; i++) { values.push( Number(arguments[i]));  }
         const total = values.reduce((x,r)=>r+=x, 0);
         const numOfZeros = values.filter(x => x===0).length;
-
+    
         
         if(total>0) {
             for(let i=0; i<this.axes.length; i++) {
@@ -121,9 +128,19 @@ class Ternary
             {
                 
                 let pointAdded = false;
-                lines.forEach(l=>{
-                    if(l.x1 === l.x2 && l.y1 === l.y2 && !pointAdded ) { points.push({x:l.x1, y:l.y1}); pointAdded = true;  }
-                });
+                const l1 = lines[0];
+                const l2 = lines[1];
+                const l3 = lines[2];
+                if(         (l1.x1 === l1.x2 && l1.y1 === l1.y2 ) 
+                        ||  (l2.x1 === l2.x2 && l2.y1 === l2.y2 ) 
+                        ||  (l3.x1 === l3.x2 && l3.y1 === l3.y2 ))
+                {
+                    if(l1.x1 === l2.x1) { points.push({x:l1.x1, y:l1.y1}); pointAdded = true; }
+                    else if(l2.x1 == l3.x1) {points.push({x:l2.x1, y:l2.y1}); pointAdded = true;}
+                    else if(l3.x1 == l1.x1) {points.push({x:l3.x1, y:l3.y1}); pointAdded = true;}
+
+                }
+                
     
             }
             else {
@@ -208,8 +225,9 @@ class Axis
         
         drawArrow(this.base, this.line, plotData.arrowsColor === "series" ? this.data.color : plotData.arrowsColor, false);
 
-        for(let i=10; i<=100 ; i += 10)
+        for(let i=0; i<=100 ; i += this.data.tickStepSize)
         {
+            if(i===0) continue;
            this.plot(i);
         
         }
@@ -217,15 +235,16 @@ class Axis
         //const arrow = this.line.copy();
         //arrow.mult(0.5);
         stroke(this.data.color);
-        
-        const arrowStart = this.base.copy().mult(0.5).rotate(120);
+        textAlign(CENTER,CENTER);
+        const arrowStart = this.base.copy().mult(0.8).rotate(135);
         arrowStart.add(this.base);
-        const arrowEnd = this.line.copy().mult(0.5);
+        const arrowEnd = this.line.copy().mult(0.465);
         drawArrow( arrowStart, arrowEnd, this.data.color);
-        arrowEnd.rotate(-90);
+        arrowEnd.rotate(-70);
         push();
+        noStroke();
         translate(arrowEnd.x, arrowEnd.y);
-        rotate(arrowEnd.heading() + 90 + this.data.arrowTextRotation );
+        rotate(arrowEnd.heading() + 70 + this.data.arrowTextRotation );
         textSize(this.data.arrowTextSize);
         text(this.data.arrowText, 0,0);
         pop();
@@ -246,7 +265,7 @@ class Axis
         val.mult(pct/100);
 
         const tick = this.base.copy();
-        tick.rotate(30).mult(0.2);
+        tick.rotate(30).mult(0.1);
 
         push();
         textAlign(CENTER,CENTER);
@@ -256,7 +275,7 @@ class Axis
         stroke(c2);
         const textX = tick.x;
         const textY = tick.y;
-        tick.mult(0.7);
+        tick.mult(0.6);
         
         line(0,0,tick.x, tick.y);
         translate(textX, textY );
@@ -341,7 +360,7 @@ function drawArrow(base, vec, myColor, withPoint = true, weight = 2) {
     if(withPoint) {
 
         rotate(vec.heading());
-        let arrowSize = 7;
+        let arrowSize = 10;
         translate(vec.mag() - arrowSize, 0);
         //stroke(0);
         //circle(arrowSize,0,3);
