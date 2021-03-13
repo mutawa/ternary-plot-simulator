@@ -44,6 +44,15 @@ function setup()
     
     b.mousePressed(function(){
         const p = ternary.plot(v1.value(), v2.value(), v3.value());
+        plotData.areas.forEach(a => {
+    
+            if(inside(p, a.points)) {
+                console.log(a.name);
+                return;
+            }
+            
+            
+        });
         points.push(p);
 
     });
@@ -74,8 +83,21 @@ function draw()
 }
 function mousePressed()
 {
+    const p = {x:mouseX - width/2, y:mouseY - height/2};
+    return;
 
-    //points.push({x:mouseX - width/2, y:mouseY-height/2});
+    points.push(p);
+
+    plotData.areas.forEach(a => {
+    
+        if(inside(p, a.points)) {
+            console.log(a.name);
+            return;
+        }
+        
+        
+    });
+    
 
 }
 
@@ -180,7 +202,6 @@ class Ternary
             
         }
         
-        //console.log(nt);
     }
 
     show() {
@@ -406,3 +427,23 @@ function get_polygon_centroid(pts) {
     f = twicearea * 3;
     return { x:x/f, y:y/f };
  }
+
+ function inside(point, vs) {
+    // ray-casting algorithm based on
+    // https://wrf.ecse.rpi.edu/Research/Short_Notes/pnpoly.html/pnpoly.html
+    
+
+    var x = point.x, y = point.y;
+    
+    var inside = false;
+    for (var i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+        var xi = vs[i].x, yi = vs[i].y;
+        var xj = vs[j].x, yj = vs[j].y;
+        
+        var intersect = ((yi > y) != (yj > y))
+            && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
+    }
+    
+    return inside;
+};
