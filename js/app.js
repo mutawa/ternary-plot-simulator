@@ -1,13 +1,14 @@
+"use strict";
 let v1, v2, v3, b;
-const radius = 700;
+const radius = 500;
 let ternary;
-let center;
+const funcs = [star, tri];
 const points = [];
 
 let areas = [];
 
 const plotData = {
-    arrowsColor:"black",
+    arrowsColor: "rgba(0,0,0,0.1)",
     arrowStrokeWeight: 4,
     gridHue: 10,
     gridLineWeight: 1.5,
@@ -29,75 +30,97 @@ const plotData = {
     {color: "green", name:"CH4", nameSize: 25, showArrow: true, arrowText: "percent CH4 %", arrowTextSize: 15, arrowTextRotation: 0, labelRotation: 180, labelSize: 15, tickStepSize: 20}
 ]};
 
+
+
 function setup()
 {
-    createCanvas(900,900);
+    createCanvas(500,600);
     angleMode(DEGREES);
 
-    ternary = new Ternary(plotData);
-    center = createVector(0,0);
+    
+    
     textAlign(CENTER);
-    v1 = createInput();
-    v2 = createInput();
-    v3 = createInput();
-    b = createButton('submit');
+    v3 = select("#c2h2");
+    v1 = select("#ch4");
+    v2 = select("#c2h4");
     
-    b.mousePressed(function(){
-        const p = ternary.plot(v1.value(), v2.value(), v3.value());
-        plotData.areas.forEach(a => {
+    b = select('#submit');
     
-            if(inside(p, a.points)) {
-                console.log(a.name);
-                return;
-            }
-            
-            
-        });
-        points.push(p);
-
-    });
+    b.mousePressed(plot_data);
     
-    plotData.areas.forEach(a => {
-        a.points = [];
-        a.coordinates.forEach(p => {
-            a.points.push(ternary.plot(p[0], p[1], p[2]));
-        });
-        a.centeroid = get_polygon_centroid(a.points);
-    });
-
-}
-
-function draw()
-{
-    background(255);
-
-    fill("whitesmoke");
     translate(width/2, height/2);
-    rotate(0);
-    
+    ternary = new Ternary(plotData);
     ternary.show();
-    points.forEach(p => {
-        circle(p.x, p.y, 10);
-    });
-    
+
+    noLoop();
+
 }
-function mousePressed()
-{
-    const p = {x:mouseX - width/2, y:mouseY - height/2};
-    return;
 
-    points.push(p);
+function plot_data(){
+    let classification = "";
 
-    plotData.areas.forEach(a => {
+    const p = ternary.plot(v1.value(), v2.value(), v3.value());
+    random(funcs)(p,"red");
     
-        if(inside(p, a.points)) {
-            console.log(a.name);
+    
+    plotData.areas.forEach(a => {
+        if( relationPP(p, a.points) >= 0) {
+            classification = a.name;
             return;
         }
-        
+    });
+    addData(classification);
+
+}
+
+let cnt = 0;
+function addData(c) {
+    cnt++;
+    var newRow = document.createElement("tr");
+    var newCell1 = document.createElement("td");
+    var newCell2 = document.createElement("td");
+    var newCell3 = document.createElement("td");
+    var newCell4 = document.createElement("td");
+    var newCell5 = document.createElement("td");
+    var cnv = document.createElement("canvas");
+    cnv.id = "something" + cnt;
+    cnv.width = 20;
+    cnv.height = 20;
+    cnv.style.border = "1px solid black";
+
+    newCell1.innerHTML = document.getElementById("c2h2").value;
+    newCell2.innerHTML = document.getElementById("ch4").value;
+    newCell3.innerHTML = document.getElementById("c2h4").value;
+    newCell4.innerHTML = c;
+    newCell5.appendChild(cnv);
+    var ctx = cnv.getContext("2d");
+    
+    ctx.beginPath();
+    ctx.arc(95, 50, 40, 0, 2 * Math.PI);
+    ctx.stroke();
+
+    newRow.append(newCell1);
+    newRow.append(newCell2);
+    newRow.append(newCell3);
+    newRow.append(newCell4);
+    newRow.append(newCell5);
+    document.getElementById("rows").appendChild(newRow);
+    
+}
+
+function mousePressed()
+{
+    const p = {x:mouseX - width/2, y:mouseY-height/2};
+    //return;
+
+    tri(p, "red");
+    plotData.areas.forEach(a => {
+        if( relationPP(p, a.points) >= 0) {
+            console.log(a.name);
+            //return;
+        }
         
     });
-    
 
 }
 
@@ -106,7 +129,9 @@ class Ternary
 {
     constructor(data)
     {
+        this.data = data;
         const n = data.series.length;
+        
         let k = 0;
         this.n = n;
         this.axes = [];
@@ -126,14 +151,28 @@ class Ternary
             k++;
             this.axes.push(axis);
         }
+
+        this.calculateAreas();
         
     }
 
-    plot(a,b,c)
+    calculateAreas()
+    {
+        this.data.areas.forEach(a => {
+            a.points = [];
+            a.coordinates.forEach(p => {
+                a.points.push(this.plot(p[0], p[1], p[2]));
+            });
+            a.centeroid = get_polygon_centroid(a.points);
+        });
+    
+    }
+    plot()
     {
         
         const values = [];
         const lines = [];
+        let point;
 
         for(let i=0; i<arguments.length; i++) { values.push( Number(arguments[i]));  }
         const total = values.reduce((x,r)=>r+=x, 0);
@@ -142,8 +181,8 @@ class Ternary
         
         if(total>0) {
             for(let i=0; i<this.axes.length; i++) {
-                const v = Number(arguments[i]);
-                lines.push(this.axes[(i+2)%this.axes.length].get(100 * v/total));
+                const v = values[i];
+                lines.push(this.axes[(i+2)%this.axes.length].getLineAtValue(100 * v/total));
             }
 
             if(numOfZeros===2) 
@@ -157,9 +196,9 @@ class Ternary
                         ||  (l2.x1 === l2.x2 && l2.y1 === l2.y2 ) 
                         ||  (l3.x1 === l3.x2 && l3.y1 === l3.y2 ))
                 {
-                    if(l1.x1 === l2.x1) { points.push({x:l1.x1, y:l1.y1}); pointAdded = true; }
-                    else if(l2.x1 == l3.x1) {points.push({x:l2.x1, y:l2.y1}); pointAdded = true;}
-                    else if(l3.x1 == l1.x1) {points.push({x:l3.x1, y:l3.y1}); pointAdded = true;}
+                    if(l1.x1 === l2.x1) { point = {x:l1.x1,  y: l1.y1}; }
+                    else if(l2.x1 == l3.x1) { point = {x:l2.x1,  y: l2.y1};}
+                    else if(l3.x1 == l1.x1) { point = {x:l3.x1,  y: l3.y1};}
 
                 }
                 
@@ -175,13 +214,13 @@ class Ternary
                     const p = line_intersect(l1.x1, l1.y1, l1.x2, l1.y2, l2.x1, l2.y1, l2.x2, l2.y2);
                     if(p !== null) {
                         
-                        points.push(p);
+                        point = p;
                         added = true;
                         break;
                     } else {
                         
-                        if((l1.x1 === l2.x2 && l1.y1 === l2.y2)) { points.push({x: l1.x1, y: l1.y1}); added = true; break; } 
-                        else if(l1.x2 === l2.x1 && l1.y2 === l2.y1) { points.push({x: l1.x2, y: l1.y2}); added = true; break; }
+                        if((l1.x1 === l2.x2 && l1.y1 === l2.y2)) { point = {x: l1.x1, y: l1.y1}; added = true; break; } 
+                        else if(l1.x2 === l2.x1 && l1.y2 === l2.y1) { point  = {x: l1.x2, y: l1.y2}; added = true; break; }
                     }
                 }
                 if(!added) {
@@ -189,41 +228,49 @@ class Ternary
                     const l2 = lines[2];
                     const p = line_intersect(l1.x1, l1.y1, l1.x2, l1.y2, l2.x1, l2.y1, l2.x2, l2.y2);
                     if(p !== null) {
-                        points.push(p);
+                        point = p;
                     } else {
                         
-                        if((l1.x1 === l2.x2 && l1.y1 === l2.y2)) { points.push({x: l1.x1, y: l1.y1}); added = true;  } 
-                        else if(l1.x2 === l2.x1 && l1.y2 === l2.y1) { points.push({x: l1.x2, y: l1.y2}); added = true;  }
+                        if((l1.x1 === l2.x2 && l1.y1 === l2.y2)) { point = {x: l1.x1, y: l1.y1}; added = true;  } 
+                        else if(l1.x2 === l2.x1 && l1.y2 === l2.y1) { point = {x: l1.x2, y: l1.y2}; added = true;  }
                     }
                 }
                 
             }
-            return points.splice(0,1)[0];
+            return point;
             
         }
         
     }
 
     show() {
+        
+        
         for(let a in this.axes) {  this.axes[a].show(); }
 
+        this.showAreas();
+        
+    }
 
-        plotData.areas.forEach(a => {
+    showAreas() {
+        this.data.areas.forEach(a => {
             stroke(0,100);
             const c = color(a.color);
             c.setAlpha(50);
             fill(c);
             textAlign(CENTER,BOTTOM);
-            beginShape();
-            for(let p of a.points) { if(p) {  vertex(p.x, p.y);} }
-            endShape();
-            fill(0);
-            textSize(15);
-            text(a.name, a.centeroid.x + (a.nameOffset ? a.nameOffset.x : 0), a.centeroid.y + (a.nameOffset ? a.nameOffset.y : 0));
-        });
-        
+            if(a.points) {
+                beginShape();
+                for(let p of a.points) { if(p) {  vertex(p.x, p.y);} }
+                endShape();
 
-        
+                fill(0);
+                textSize(15);
+                text(a.name, a.centeroid.x + (a.nameOffset ? a.nameOffset.x : 0), a.centeroid.y + (a.nameOffset ? a.nameOffset.y : 0));
+            }
+            
+            
+        });
     }
 }
 
@@ -232,7 +279,7 @@ class Axis
     constructor(data, x1,y1,x2,y2)
     {
         this.data = data;
-        this.base = createVector(x1, y1);
+        this.base = createVector(x1 , y1 );
         this.end = createVector(x2, y2);
         this.line = p5.Vector.sub(this.end, this.base);
         this.c = data.color;
@@ -240,21 +287,17 @@ class Axis
 
     }
 
-    show()
+    drawTicks() 
     {
-        stroke(this.c);
-        
-        drawArrow(this.base, this.line, plotData.arrowsColor === "series" ? this.data.color : plotData.arrowsColor, false);
-
         for(let i=0; i<=100 ; i += this.data.tickStepSize)
         {
             if(i===0) continue;
-           this.plot(i);
+           this.tickAt(i);
         
         }
+    }
 
-        //const arrow = this.line.copy();
-        //arrow.mult(0.5);
+    drawArrow() {
         stroke(this.data.color);
         textAlign(CENTER,CENTER);
         const arrowStart = this.base.copy().mult(0.8).rotate(135);
@@ -269,16 +312,33 @@ class Axis
         textSize(this.data.arrowTextSize);
         text(this.data.arrowText, 0,0);
         pop();
+    }
 
+    drawName() 
+    {
+        
         noStroke();
         const name = this.end.copy().mult(1.15);
         textSize(this.data.nameSize);
         text(this.data.name,name.x, name.y);
+    }
+    show()
+    {
+        
+        stroke(this.c);
+        drawArrow(this.base, this.line, plotData.arrowsColor === "series" ? this.data.color : plotData.arrowsColor, false);
+
+        this.drawTicks();
+        
+        this.drawArrow();
+
+        this.drawName();
+        
         
     }
 
 
-    plot = pct => {
+    tickAt = pct => {
         
         
         //drawArrow(this.base, this.line, this.c, true, plotData.arrowStrokeWeight);
@@ -344,12 +404,10 @@ class Axis
         
     }
 
-    get = pct => {
+    getLineAtValue = pct => {
         
         const val = this.line.copy();
         val.mult( pct/100 );
-        //stroke(this.data.color);
-        //strokeWeight(5);
     
         
         
@@ -357,13 +415,14 @@ class Axis
         valp.setMag(this.line.mag() - val.mag() );
         valp.rotate(60);
         const t = p5.Vector.add(val, this.base);
-        const x1 = round(this.base.x + val.x ,4) || 0;
-        const y1 = round(this.base.y + val.y ,4) || 0;
-        const x2 = round(t.x + valp.x,4) || 0;
-        const y2 = round(t.y + valp.y,4) || 0;
+        const x1 = (round(this.base.x + val.x ,0) || 0) ;
+        const y1 = (round(this.base.y + val.y ,0) || 0) ;
+        const x2 = (round(t.x + valp.x,0) || 0) ;
+        const y2 = (round(t.y + valp.y,0) || 0) ;
+        
+        //line(this.base.x + val.x  , this.base.y + val.y , t.x+valp.x, t.y+valp.y);
 
-        line(this.base.x + val.x  , this.base.y + val.y     , t.x+valp.x, t.y+valp.y);
-
+        
         
         return {x1, y1,  x2, y2, c: this.data.color};
         
@@ -447,3 +506,111 @@ function get_polygon_centroid(pts) {
     
     return inside;
 };
+
+
+function checkcheck (p, corners)  {
+
+    var i, j=corners.length-1 ;
+    var odd = false;
+
+    
+
+    for (i=0; i<corners.length; i++) {
+        let ci = corners[i];
+        let cj = corners[j];
+        if ((ci.y< p.y && cj.y>=p.y ||  cj.y< p.y && ci.y>=p.y)
+            && (ci.x<=p.x || cj.x<=p.x)) {
+              odd ^= (ci.x + (p.y-ci.y)*(cj.x-ci.x)/(cj.y- ci.y)) < p.x; 
+        }
+
+        j=i; 
+    }
+
+return odd;
+}
+
+
+function pointIsInPoly(p, polygon) {
+    var isInside = false;
+    var minX = polygon[0].x, maxX = polygon[0].x;
+    var minY = polygon[0].y, maxY = polygon[0].y;
+    for (var n = 1; n < polygon.length; n++) {
+        var q = polygon[n];
+        minX = Math.min(q.x, minX);
+        maxX = Math.max(q.x, maxX);
+        minY = Math.min(q.y, minY);
+        maxY = Math.max(q.y, maxY);
+    }
+
+    if (p.x < minX || p.x > maxX || p.y < minY || p.y > maxY) {
+        return false;
+    }
+
+    var i = 0, j = polygon.length - 1;
+    for (i, j; i < polygon.length; j = i++) {
+        if ( (polygon[i].y > p.y) != (polygon[j].y > p.y) &&
+                p.x < (polygon[j].x - polygon[i].x) * (p.y - polygon[i].y) / (polygon[j].y - polygon[i].y) + polygon[i].x ) {
+            isInside = !isInside;
+        }
+    }
+
+    return isInside;
+}
+
+function insidePoly(p, poly) {
+    let pointx = p.x;
+    let pointy = p.y;
+    var i, j;
+    var inside = false;
+    for (i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+        if(((poly[i].y > pointy) != (poly[j].y > pointy)) && (pointx < (poly[j].x-poly[i].x) * (pointy-poly[i].y) / (poly[j].y-poly[i].y) + poly[i].x) ) inside = !inside;
+    }
+    return inside;
+}
+
+function relationPP(P, polygon) {
+    if(!P){ return; }
+    const between = (p, a, b) => p >= a && p <= b || p <= a && p >= b
+    let inside = false
+    for (let i = polygon.length-1, j = 0; j < polygon.length; i = j, j++) {
+        const A = polygon[i]
+        const B = polygon[j]
+        // corner cases
+        if (P.x == A.x && P.y == A.y || P.x == B.x && P.y == B.y) return 0
+        if (A.y == B.y && P.y == A.y && between(P.x, A.x, B.x)) return 0
+
+        if (between(P.y, A.y, B.y)) { // if P inside the vertical range
+            // filter out "ray pass vertex" problem by treating the line a little lower
+            if (P.y == A.y && B.y >= A.y || P.y == B.y && A.y >= B.y) continue
+            // calc cross product `PA X PB`, P lays on left side of AB if c > 0 
+            const c = (A.x - P.x) * (B.y - P.y) - (B.x - P.x) * (A.y - P.y)
+            if (c == 0) return 0
+            if ((A.y < B.y) == (c > 0)) inside = !inside
+        }
+    }
+
+    return inside? 1 : -1
+}
+
+function star(p, c) {
+    if(!p) return;
+    c = color(c);
+    c.setAlpha(100);
+    fill(c);
+    noStroke();
+    circle(p.x, p.y, 5);
+}
+
+
+function tri(p, c) {
+    if(!p) return;
+    c = color(c);
+    c.setAlpha(100);
+    const height = 10;
+    push();
+    translate(p.x, p.y);
+    fill(c);
+    noStroke();
+    triangle(-height/2, height/2, 0, -height/2, height/2, height/2);
+    pop();
+}
