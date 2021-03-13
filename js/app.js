@@ -60,7 +60,7 @@ function plot_data(){
     let classification = "";
 
     const p = ternary.plot(v1.value(), v2.value(), v3.value());
-    random(funcs)(p,"red");
+    const fn = random(funcs);
     
     
     plotData.areas.forEach(a => {
@@ -69,12 +69,13 @@ function plot_data(){
             return;
         }
     });
-    addData(classification);
+    fn(p,"red");
+    addData(classification, fn , p,"red");
 
 }
 
 let cnt = 0;
-function addData(c) {
+function addData(c,fn, p, color) {
     cnt++;
     var newRow = document.createElement("tr");
     var newCell1 = document.createElement("td");
@@ -83,10 +84,10 @@ function addData(c) {
     var newCell4 = document.createElement("td");
     var newCell5 = document.createElement("td");
     var cnv = document.createElement("canvas");
-    cnv.id = "something" + cnt;
+    
     cnv.width = 20;
     cnv.height = 20;
-    cnv.style.border = "1px solid black";
+    //cnv.style.border = "1px solid black";
 
     newCell1.innerHTML = document.getElementById("c2h2").value;
     newCell2.innerHTML = document.getElementById("ch4").value;
@@ -94,11 +95,9 @@ function addData(c) {
     newCell4.innerHTML = c;
     newCell5.appendChild(cnv);
     var ctx = cnv.getContext("2d");
+    fn(p,color,ctx);
     
-    ctx.beginPath();
-    ctx.arc(95, 50, 40, 0, 2 * Math.PI);
-    ctx.stroke();
-
+    
     newRow.append(newCell1);
     newRow.append(newCell2);
     newRow.append(newCell3);
@@ -592,25 +591,44 @@ function relationPP(P, polygon) {
     return inside? 1 : -1
 }
 
-function star(p, c) {
+function star(p, c, ctx) {
+    
     if(!p) return;
-    c = color(c);
-    c.setAlpha(100);
-    fill(c);
-    noStroke();
-    circle(p.x, p.y, 5);
+    if(!ctx) {
+        c = color(c);
+        c.setAlpha(100);
+        fill(c);
+        noStroke();
+        circle(p.x, p.y, 5);
+    } else {
+        ctx.arc(10,10,8,0,TWO_PI);
+        ctx.stroke();
+    }
+
+    
 }
 
 
-function tri(p, c) {
+function tri(p, c, ctx) {
     if(!p) return;
-    c = color(c);
-    c.setAlpha(100);
-    const height = 10;
-    push();
-    translate(p.x, p.y);
-    fill(c);
-    noStroke();
-    triangle(-height/2, height/2, 0, -height/2, height/2, height/2);
-    pop();
+    if(!ctx) { ctx = document.getElementById("defaultCanvas0").getContext("2d"); }
+    else { p.x = 10; p.y = 10; }
+
+    if(!ctx) {
+
+        c = color(c);
+        c.setAlpha(100);
+        const height = 10;
+        push();
+        translate(p.x, p.y);
+        fill(c);
+        noStroke();
+        triangle(-height/2, height/2, 0, -height/2, height/2, height/2);
+        pop();
+    } else {
+        ctx.beginPath();
+        ctx.arc(p.x,p.y,8,0,TWO_PI);
+        
+        ctx.stroke();
+    }
 }
