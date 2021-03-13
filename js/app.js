@@ -11,9 +11,9 @@ const plotData = {
     gridLineWeight: 1,
     
     series:[
-    {color: "red", name:"C2H6", showArrow: true, arrowText: "percent C2H6 %", labelRotation: 0},
-    {color: "blue", name:"H2O", showArrow: true, arrowText: "percent Water %", labelRotation: 360/3},
-    {color: "green", name:"NaCL", showArrow: true, arrowText: "percent NaCl %", labelRotation: 200}
+    {color: "red", name:"C2H6", nameSize: 25, showArrow: true, arrowText: "percent C2H6 %", arrowTextSize: 20, arrowTextRotation: 0, labelRotation: 0, labelSize:10},
+    {color: "blue", name:"H2O", nameSize: 25, showArrow: true, arrowText: "percent Water %", arrowTextSize: 20, arrowTextRotation: 180, labelRotation: 0, labelSize: 10},
+    {color: "green", name:"NaCL", nameSize: 25, showArrow: true, arrowText: "percent NaCl %", arrowTextSize: 20, arrowTextRotation: 0, labelRotation: 180, labelSize: 10}
 ]};
 
 function setup()
@@ -41,7 +41,7 @@ function draw()
 
     fill("whitesmoke");
     translate(width/2, height/2);
-    //rotate(150);
+    rotate(0);
     stroke("gold");
     circle(0,0, radius);
     ternary.show();
@@ -51,11 +51,8 @@ function draw()
 }
 function mousePressed()
 {
-    const r = 13;
-    const b = 25;
-    const g = 8;
 
-    //ternary.plot(r,g,b);
+    points.push({x:mouseX - width/2, y:mouseY-height/2});
 
     
 
@@ -71,7 +68,7 @@ class Ternary
         this.n = n;
         this.axes = [];
         for(let i=0; i<n; i++) {
-            const angle1 = 360/n * i;
+            const angle1 = 360/n * i - 90;
             const angle2 = angle1 + 360/n;
 
             const x1 = cos(angle1) * radius/2;
@@ -178,7 +175,18 @@ class Axis
         arrowStart.add(this.base);
         const arrowEnd = this.line.copy().mult(0.5);
         drawArrow( arrowStart, arrowEnd, this.data.color);
+        arrowEnd.rotate(-90);
+        push();
+        translate(arrowEnd.x, arrowEnd.y);
+        rotate(arrowEnd.heading() + 90 + this.data.arrowTextRotation );
+        textSize(this.data.arrowTextSize);
+        text(this.data.arrowText, 0,0);
+        pop();
 
+
+        const name = this.end.copy().mult(1.15);
+        textSize(this.data.nameSize);
+        text(this.data.name,name.x, name.y);
         
     }
 
@@ -194,18 +202,21 @@ class Axis
         tick.rotate(30).mult(0.2);
 
         push();
-        textAlign(RIGHT);
+        textAlign(CENTER,CENTER);
         translate(val.x + this.base.x, val.y + this.base.y);
-        
-        stroke(this.data.color);
+        const c2 = color(this.data.color);
+        c2.setAlpha(50);
+        stroke(c2);
         const textX = tick.x;
         const textY = tick.y;
-        tick.mult(0.5);
+        tick.mult(0.7);
+        
         line(0,0,tick.x, tick.y);
         translate(textX, textY );
-        rotate(tick.heading());
+        rotate(tick.heading()+ this.data.labelRotation);
         noStroke();
         fill(this.data.color);
+        textSize(this.data.labelSize);
         text(pct, 0,0);
         //text(pct, 0,0);
         //console.log(tick.x, tick.y);
